@@ -7,8 +7,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.support.v4.app.RemoteInput;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.core.app.RemoteInput;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.facebook.react.bridge.ActivityEventListener;
@@ -315,7 +315,7 @@ public class RNFirebaseNotifications extends ReactContextBaseJavaModule implemen
 
   private WritableMap parseIntentForRemoteNotification(Intent intent) {
     // Check if FCM data exists
-    if (intent.getExtras() == null || !intent.hasExtra("google.message_id")) {
+    if (intent.getExtras() == null) {
       return null;
     }
 
@@ -328,15 +328,44 @@ public class RNFirebaseNotifications extends ReactContextBaseJavaModule implemen
       if (key.equals("google.message_id")) {
         notificationMap.putString("notificationId", extras.getString(key));
       } else if (key.equals("collapse_key")
+        || key.equals("fromPush")
+        || key.equals("com.batch.from_push")
         || key.equals("from")
         || key.equals("google.sent_time")
         || key.equals("google.ttl")
         || key.equals("_fbSourceApplicationHasBeenSet")) {
         // ignore known unneeded fields
+      } else if(key.equals("android")) {
+        Bundle androidPayload = extras.getBundle("android");
+        for (String aKey : androidPayload.keySet()) {
+          if (aKey.equals("collapse_key")
+            || aKey.equals("from")
+            || aKey.equals("google.sent_time")
+            || aKey.equals("google.ttl")
+            || aKey.equals("_fbSourceApplicationHasBeenSet")) {
+            // ignore known unneeded fields
+          } else {
+            dataMap.putString(aKey, androidPayload.getString(aKey));
+          }
+        }
+      } else if(key.equals("batchPushPayload")) {
+        Bundle batchPayload = extras.getBundle("batchPushPayload");
+        for (String bKey : batchPayload.keySet()) {
+          if (bKey.equals("collapse_key")
+            || bKey.equals("from")
+            || bKey.equals("google.sent_time")
+            || bKey.equals("google.ttl")
+            || bKey.equals("_fbSourceApplicationHasBeenSet")) {
+            // ignore known unneeded fields
+          } else {
+            dataMap.putString(bKey, batchPayload.getString(bKey));
+          }
+        }
       } else {
         dataMap.putString(key, extras.getString(key));
       }
     }
+
     notificationMap.putMap("data", dataMap);
 
     WritableMap notificationOpenMap = Arguments.createMap();
