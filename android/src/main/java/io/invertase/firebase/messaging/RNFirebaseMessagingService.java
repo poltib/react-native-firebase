@@ -31,8 +31,9 @@ public class RNFirebaseMessagingService extends FirebaseMessagingService {
   @Override
   public void onMessageReceived(RemoteMessage message) {
     Log.d(TAG, "onMessageReceived event received");
+    Map data = message.getData();
 
-    if (message.getNotification() != null) {
+    if (message.getNotification() != null || message.getData() != null) {
       // It's a notification, pass to the Notifications module
       Intent notificationEvent = new Intent(REMOTE_NOTIFICATION_EVENT);
       notificationEvent.putExtra("notification", message);

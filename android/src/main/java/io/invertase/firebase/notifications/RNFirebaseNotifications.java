@@ -361,6 +361,20 @@ public class RNFirebaseNotifications extends ReactContextBaseJavaModule implemen
             dataMap.putString(bKey, batchPayload.getString(bKey));
           }
         }
+      } else if(key.equals("data")) {
+        Bundle dataPayload = extras.getBundle("data");
+        for (String dKey : dataPayload.keySet()) {
+          if (dKey.equals("collapse_key")
+            || dKey.equals("from")
+            || dKey.equals("google.sent_time")
+            || dKey.equals("com.batch.open.tracked")
+            || dKey.equals("google.ttl")
+            || dKey.equals("_fbSourceApplicationHasBeenSet")) {
+            // ignore known unneeded fields
+          } else {
+            dataMap.putString(dKey, dataPayload.getString(dKey));
+          }
+        }
       } else {
         dataMap.putString(key, extras.getString(key));
       }
@@ -381,12 +395,13 @@ public class RNFirebaseNotifications extends ReactContextBaseJavaModule implemen
 
   private WritableMap parseRemoteMessage(RemoteMessage message) {
     RemoteMessage.Notification notification = message.getNotification();
+    Map<String, String> notificationData = message.getData();
 
     WritableMap notificationMap = Arguments.createMap();
     WritableMap dataMap = Arguments.createMap();
 
     // Cross platform notification properties
-    String body = getNotificationBody(notification);
+    String body = getNotificationBody(notification, notificationData);
     if (body != null) {
       notificationMap.putString("body", body);
     }
@@ -401,41 +416,42 @@ public class RNFirebaseNotifications extends ReactContextBaseJavaModule implemen
     if (message.getMessageId() != null) {
       notificationMap.putString("notificationId", message.getMessageId());
     }
-    if (notification.getSound() != null) {
-      notificationMap.putString("sound", notification.getSound());
-    }
-    String title = getNotificationTitle(notification);
+    String title = getNotificationTitle(notification, notificationData);
     if (title != null) {
       notificationMap.putString("title", title);
     }
-
-    // Android specific notification properties
     WritableMap androidMap = Arguments.createMap();
-    if (notification.getClickAction() != null) {
-      androidMap.putString("clickAction", notification.getClickAction());
-    }
-    if (notification.getColor() != null) {
-      androidMap.putString("color", notification.getColor());
-    }
-    if (notification.getIcon() != null) {
-      WritableMap iconMap = Arguments.createMap();
-      iconMap.putString("icon", notification.getIcon());
-      androidMap.putMap("smallIcon", iconMap);
-    }
-    if (notification.getImageUrl() != null) {
-      String imageUrl = notification.getImageUrl().toString();
-      WritableMap bigPictureMap = Arguments.createMap();
-      bigPictureMap.putString("picture", imageUrl);
-      bigPictureMap.putNull("largeIcon");
-      androidMap.putMap("bigPicture", bigPictureMap);
-      androidMap.putString("largeIcon", imageUrl);
-    }
-    if (notification.getTag() != null) {
-      androidMap.putString("group", notification.getTag());
-      androidMap.putString("tag", notification.getTag());
-    }
-    if (notification.getChannelId() != null) {
-      androidMap.putString("channelId", notification.getChannelId());
+    if (notification != null) {
+      if (notification.getSound() != null) {
+        notificationMap.putString("sound", notification.getSound());
+      }
+      // Android specific notification properties
+      if (notification.getClickAction() != null) {
+        androidMap.putString("clickAction", notification.getClickAction());
+      }
+      if (notification.getColor() != null) {
+        androidMap.putString("color", notification.getColor());
+      }
+      if (notification.getIcon() != null) {
+        WritableMap iconMap = Arguments.createMap();
+        iconMap.putString("icon", notification.getIcon());
+        androidMap.putMap("smallIcon", iconMap);
+      }
+      if (notification.getImageUrl() != null) {
+        String imageUrl = notification.getImageUrl().toString();
+        WritableMap bigPictureMap = Arguments.createMap();
+        bigPictureMap.putString("picture", imageUrl);
+        bigPictureMap.putNull("largeIcon");
+        androidMap.putMap("bigPicture", bigPictureMap);
+        androidMap.putString("largeIcon", imageUrl);
+      }
+      if (notification.getTag() != null) {
+        androidMap.putString("group", notification.getTag());
+        androidMap.putString("tag", notification.getTag());
+      }
+      if (notification.getChannelId() != null) {
+        androidMap.putString("channelId", notification.getChannelId());
+      }
     }
     notificationMap.putMap("android", androidMap);
 
@@ -443,35 +459,55 @@ public class RNFirebaseNotifications extends ReactContextBaseJavaModule implemen
   }
 
   private @Nullable
-  String getNotificationBody(RemoteMessage.Notification notification) {
-    String body = notification.getBody();
-    String bodyLocKey = notification.getBodyLocalizationKey();
-    if (bodyLocKey != null) {
-      String[] bodyLocArgs = notification.getBodyLocalizationArgs();
-      Context ctx = getReactApplicationContext();
-      int resId = getResId(ctx, bodyLocKey);
-      return ctx
-        .getResources()
-        .getString(resId, (Object[]) bodyLocArgs);
-    } else {
-      return body;
+  String getNotificationBody(RemoteMessage.Notification notification, Map<String, String> data) {
+    if (notification != null) {
+      String body = notification.getBody();
+      String bodyLocKey = notification.getBodyLocalizationKey();
+      if (bodyLocKey != null) {
+        String[] bodyLocArgs = notification.getBodyLocalizationArgs();
+        Context ctx = getReactApplicationContext();
+        int resId = getResId(ctx, bodyLocKey);
+        return ctx
+          .getResources()
+          .getString(resId, (Object[]) bodyLocArgs);
+      } else {
+        return body;
+      }
+    } else if (data != null) {
+      if (data.containsKey("msg")) {
+        String body = data.get("msg");
+        return body;
+      } else {
+        return null;
+      }
     }
+    return null;
   }
 
   private @Nullable
-  String getNotificationTitle(RemoteMessage.Notification notification) {
-    String title = notification.getTitle();
-    String titleLocKey = notification.getTitleLocalizationKey();
-    if (titleLocKey != null) {
-      String[] titleLocArgs = notification.getTitleLocalizationArgs();
-      Context ctx = getReactApplicationContext();
-      int resId = getResId(ctx, titleLocKey);
-      return ctx
-        .getResources()
-        .getString(resId, (Object[]) titleLocArgs);
-    } else {
-      return title;
+  String getNotificationTitle(RemoteMessage.Notification notification, Map<String, String> data) {
+    if (notification != null) {
+      String title = notification.getTitle();
+      String titleLocKey = notification.getTitleLocalizationKey();
+      if (titleLocKey != null) {
+        String[] titleLocArgs = notification.getTitleLocalizationArgs();
+        Context ctx = getReactApplicationContext();
+        int resId = getResId(ctx, titleLocKey);
+        return ctx
+          .getResources()
+          .getString(resId, (Object[]) titleLocArgs);
+      } else {
+        return title;
+      }
+    } else if (data != null) {
+      if (data.containsKey("title")) {
+        String title = data.get("title");
+        return title;
+      } else {
+        return null;
+      }
     }
+    return null;
   }
 
   private class RemoteNotificationReceiver extends BroadcastReceiver {
