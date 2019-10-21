@@ -9,6 +9,8 @@ import com.facebook.react.HeadlessJsTaskService;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
+import java.util.Map;
+
 import io.invertase.firebase.Utils;
 
 public class RNFirebaseMessagingService extends FirebaseMessagingService {
